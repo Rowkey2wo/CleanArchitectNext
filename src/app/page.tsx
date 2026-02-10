@@ -1,57 +1,130 @@
-"use client"
-import Image from "next/image";
+"use client";
+
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+type AuthMode = "login" | "register";
 
 export default function Home() {
-  const [count,setCount] = useState(0)
+  const router = useRouter();
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    setLoading(true);
+    setMessage("");
+    setIsError(false);
+
+    try {
+      if (mode === "register") {
+        const registerRes = await fetch("/api/users", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const registerData = (await registerRes.json()) as { error?: string };
+        if (!registerRes.ok) {
+          throw new Error(registerData.error ?? "Registration failed");
+        }
+      }
 
   
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const loginData = (await loginRes.json()) as { error?: string };
+      if (!loginRes.ok) {
+        throw new Error(loginData.error ?? "Login failed");
+      }
+
+      setMessage("Success! Redirecting to dashboard...");
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setIsError(true);
+      setMessage(error instanceof Error ? error.message : "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            This is the Count {count}
-          </h1>
-          <button className="cursor-pointer bg-white px-10 py-3 text-black rounded-2xl"
-          onClick={() => setCount(count + 1)}
-          >Enter</button>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-6 py-16">
+      <section className="w-full rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <h1 className="text-3xl font-semibold text-zinc-900">Secure Portal</h1>
+        <p className="mt-2 text-sm text-zinc-600">
+          Login to access your security dashboard and test protected API routes.
+        </p>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${mode === "login" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
+            onClick={() => setMode("login")}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            Login
+          </button>
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${mode === "register" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
+            onClick={() => setMode("register")}
+          >
+            Register
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <label className="block text-sm font-medium text-zinc-700">
+            Email
+            <input
+              type="email"
+              autoComplete="email"
+              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 outline-none ring-zinc-900 focus:ring"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </label>
+
+          <label className="block text-sm font-medium text-zinc-700">
+            Password
+            <input
+              type="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 outline-none ring-zinc-900 focus:ring"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+
+          <button
+            type="button"
+            className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
+            onClick={submit}
+            disabled={loading}
           >
-            Documentation
-          </a>
+            {loading ? "Please wait..." : mode === "login" ? "Login securely" : "Register + Login"}
+          </button>
+
+          <p className={`text-sm ${isError ? "text-red-600" : "text-emerald-600"}`}>{message}</p>
+
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
+            <p className="font-semibold">Security Requirements</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>Password must be 12+ chars with upper/lowercase, number, and symbol.</li>
+              <li>State-changing API calls enforce same-origin and JSON content type.</li>
+              <li>Session uses HTTP-only signed cookie with strict SameSite policy.</li>
+            </ul>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
